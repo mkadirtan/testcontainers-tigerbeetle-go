@@ -15,16 +15,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      # dind is short for docker-in-docker
-      # testcontainers use this service from the exposed port
-      # tigerbeetle container needs privileged access to start, because it needs to access iouring feature
-      dind:
-        image: docker:27.3.1-dind
-        options: --security-opt seccomp=unconfined --privileged
-        ports:
-          - "2375:2375"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,10 +26,6 @@ jobs:
 
       - name: Run tests
         env:
-          # look services/dind above
-          DOCKER_HOST: "tcp://docker:2375"
-          DOCKER_TLS_CERTDIR: ""
-          DOCKER_DRIVER: overlay2
           CGO_ENABLED: "1"
         run: |
           go test ./... -v
