@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -47,47 +48,18 @@ func (c *Container) Address(ctx context.Context) (string, error) {
 	return mappedPort.Port(), nil
 }
 
-// Run creates a temporary volume for 0_0.tigerbeetle cluster file and starts the Tigerbeetle at default 3000 port
+// Run creates a temporary directory for 0_0.tigerbeetle cluster file and starts the Tigerbeetle at default 3000 port
 func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*Container, error) {
-	var tmpDir string
-	ci := os.Getenv("CI")
-	if ci == "true" {
-		tmpDir = "/__w/_temp"
-	} else {
-		tmpDir = os.TempDir()
-	}
-
+	tmpDir := os.TempDir()
 	suffix := fmt.Sprintf("tmp-tb-%d", rand.Uint64())
-	var clusterFileDir string
-	if len(tmpDir) > 0 && os.IsPathSeparator(tmpDir[len(tmpDir)-1]) {
-		clusterFileDir = tmpDir + suffix
-	} else {
-		clusterFileDir = tmpDir + string(os.PathSeparator) + suffix
-	}
+	clusterFileDir := path.Join(tmpDir, suffix)
 
-	fmt.Printf("cluster file dir: %s\n", clusterFileDir)
 	err := os.Mkdir(clusterFileDir, 0777)
-	// clusterFileDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return nil, fmt.Errorf("could not create temporary directory for cluster file: %w", err)
 	}
 
-	stats, err := os.Stat(clusterFileDir)
-	if err != nil {
-		return nil, err
-	}
-
-	fmt.Printf("cluster file stats: %+v\n", stats)
-
-	//err = os.Chown(clusterFileDir, os.Getuid(), os.Getgid())
-	//if err != nil {
-	//	return nil, fmt.Errorf("could not change owner of the temporary directory for cluster file: %w", err)
-	//}
-
-	//suffix := rand.Uint64()
-	//clusterFileVolume := fmt.Sprintf("tmp-tigerbeetle-%x", suffix)
-
-	// hostConfigModifier mounts volume to container cluster file
+	// hostConfigModifier mounts cluster file directory to container
 	hostConfigModifier := func(hostConfig *container.HostConfig) {
 		hostConfig.Mounts = []mount.Mount{
 			{
@@ -120,8 +92,10 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 	}
 
 	// start the formatContainer
+
 	formatContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: formatContainerReq,
+		ProviderType:     testcontainers.ProviderDocker,
 		Started:          true,
 	})
 	if err != nil {

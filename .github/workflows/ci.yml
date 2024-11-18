@@ -8,13 +8,20 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
 
-    container:
-      image: docker:27.3.1-dind
-      options: --security-opt seccomp=unconfined --privileged
+    services:
+      dind:
+        image: docker:27.3.1-dind
+        command: [ "--tls=false" ]
+        options: --security-opt seccomp=unconfined --privileged
+        ports:
+          - "2375:2375"
 
     steps:
       - name: Checkout repository
@@ -25,12 +32,11 @@ jobs:
         with:
           go-version: '1.23.2'
 
-      - name: Install GCC and dependencies
-        run: |
-          apk add build-base
-
       - name: Run tests
         env:
+          DOCKER_HOST: "tcp://docker:2375"
+          DOCKER_TLS_CERTDIR: ""
+          DOCKER_DRIVER: overlay2
           CGO_ENABLED: "1"
         run: |
           go test ./... -v
