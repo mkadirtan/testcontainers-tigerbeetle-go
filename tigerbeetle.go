@@ -11,31 +11,45 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// These constants are not very flexible for now
 const (
-	// tbImage Tigerbeetle official image in latest tag
-	tbImage = "ghcr.io/tigerbeetle/tigerbeetle:latest"
-	// tbPort the default port used in the Tigerbeetle docs
-	tbPort = "3000"
-	// clusterID Cluster ID for Tigerbeetle
-	clusterID = "0"
-	// replicaID Replica ID for testing
-	replicaID = "0"
-	// replicaCount Number of replicas for this cluster
-	replicaCount = "1"
+	defaultPort     = "3000"
+	clusterFileName = "0_0.tigerbeetle"
+	clusterID       = 0
+	replicaID       = 0
+	replicaCount    = 1
+)
+
+const (
+	DefaultImage = "ghcr.io/tigerbeetle/tigerbeetle:0.16.12"
 )
 
 type Container struct {
 	testcontainers.Container
-	Host    string
-	Port    string
 	dataDir string
 }
 
-// RunContainer creates a temporary directory with 0_0.tigerbeetle cluster file and starts the Tigerbeetle at default 3000 port
+// Address returns the connection address of the Tigerbeetle container
+// The Cluster ID is 0
+// Example usage:
+// ```go
+//
+//	address, err := tbContainer.Address(ctx)
+//	tbClient, err := tigerbeetle_go.NewClient(types.ToUint128(0), []string{address})
+//
+// ```
+func (c *Container) Address(ctx context.Context) (string, error) {
+	mappedPort, err := c.MappedPort(ctx, defaultPort)
+	if err != nil {
+		return "", err
+	}
+
+	return mappedPort.Port(), nil
+}
+
+// Run creates a temporary directory with 0_0.tigerbeetle cluster file and starts the Tigerbeetle at default 3000 port
 // The temporary directory is cleaned-up upon Terminate
 // The port is unchangeable for now
-func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomizer) (*Container, error) {
+func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*Container, error) {
 	// Create the temporary directory to store 0_0.tigerbeetle cluster file
 	dataDir, err := os.MkdirTemp("", "tbdata")
 	if err != nil {
@@ -61,12 +75,12 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 
 	// Run a container to format 0_0.tigerbeetle cluster file and wait for it to complete
 	formatContainerReq := testcontainers.ContainerRequest{
-		Image: tbImage,
+		Image: img,
 		Cmd: []string{
 			"format",
-			"--cluster=" + clusterID,
-			"--replica=" + replicaID,
-			"--replica-count=" + replicaCount,
+			fmt.Sprintf("--cluster=%d", clusterID),
+			fmt.Sprintf("--replica=%d", replicaID),
+			fmt.Sprintf("--replica-count=%d", replicaCount),
 			"/data/0_0.tigerbeetle",
 		},
 		WaitingFor:         wait.ForExit(),
@@ -80,24 +94,24 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 		Started:          true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to start Tigerbeetle formatContainer: %w", err)
+		return nil, fmt.Errorf("error while formatting the Tigerbeetle cluster file: %w", err)
 	}
 
 	// Wait for the formatContainer to terminate
 	if err = formatContainer.Terminate(ctx); err != nil {
-		return nil, fmt.Errorf("failed to terminate Tigerbeetle formatContainer: %w", err)
+		return nil, fmt.Errorf("error while formatting the Tigerbeetle cluster file, failed to terminate temporary Tigerbeetle container: %w", err)
 	}
 
 	// Define the main Tigerbeetle container request
 	req := testcontainers.ContainerRequest{
-		Image:        tbImage,
-		ExposedPorts: []string{tbPort + "/tcp"},
+		Image:        img,
+		ExposedPorts: []string{defaultPort + "/tcp"},
 		Cmd: []string{
 			"start",
-			fmt.Sprintf("--addresses=0.0.0.0:%s", tbPort),
-			fmt.Sprintf("/data/%s", "0_0.tigerbeetle"),
+			fmt.Sprintf("--addresses=0.0.0.0:%s", defaultPort),
+			fmt.Sprintf("/data/%s", clusterFileName),
 		},
-		WaitingFor:         wait.ForListeningPort(tbPort),
+		WaitingFor:         wait.ForListeningPort(defaultPort),
 		HostConfigModifier: hostConfigModifier,
 	}
 
@@ -105,6 +119,7 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 		ContainerRequest: req,
 		Started:          true,
 	}
+
 	// Apply user defined options, it is undefined behavior to modify ExposedPorts, since it is hardcoded in other commands
 	for _, opt := range opts {
 		if err = opt.Customize(&genericContainerRequest); err != nil {
@@ -115,31 +130,19 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 	// Start the Tigerbeetle container
 	tbContainer, err := testcontainers.GenericContainer(ctx, genericContainerRequest)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start Tigerbeetle formatContainer: %w", err)
-	}
-
-	// Get the Tigerbeetle host and port information
-	host, err := tbContainer.Host(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get formatContainer host: %w", err)
-	}
-	port, err := tbContainer.MappedPort(ctx, tbPort)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get formatContainer port: %w", err)
+		return nil, fmt.Errorf("failed to start Tigerbeetle container: %w", err)
 	}
 
 	return &Container{
 		Container: tbContainer,
-		Host:      host,
-		Port:      port.Port(),
 		dataDir:   dataDir,
 	}, nil
 }
 
 // Terminate exits the container then cleans-up the temporary directory containing cluster file
-func (t *Container) Terminate(ctx context.Context) error {
-	err := t.Container.Terminate(ctx)
+func (c *Container) Terminate(ctx context.Context) error {
+	err := c.Container.Terminate(ctx)
 	// During termination remove the temporary folder containing cluster file
-	_ = os.RemoveAll(t.dataDir)
+	_ = os.RemoveAll(c.dataDir)
 	return err
 }
