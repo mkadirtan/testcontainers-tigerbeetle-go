@@ -3,9 +3,7 @@ package tigerbeetle
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"os"
-	"path"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -27,11 +25,11 @@ const (
 
 type Container struct {
 	testcontainers.Container
-	clusterFileVolume string
+	clusterFileDir string
 }
 
 // Address returns the connection address of the Tigerbeetle container
-// The Cluster ID is 0
+// The ClusterID is set to 0 for containers started using this package
 // Example usage:
 // ```go
 //
@@ -50,11 +48,7 @@ func (c *Container) Address(ctx context.Context) (string, error) {
 
 // Run creates a temporary directory for 0_0.tigerbeetle cluster file and starts the Tigerbeetle at default 3000 port
 func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*Container, error) {
-	tmpDir := os.TempDir()
-	suffix := fmt.Sprintf("tmp-tb-%d", rand.Uint64())
-	clusterFileDir := path.Join(tmpDir, suffix)
-
-	err := os.Mkdir(clusterFileDir, 0777)
+	clusterFileDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return nil, fmt.Errorf("could not create temporary directory for cluster file: %w", err)
 	}
@@ -140,14 +134,14 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 	}
 
 	return &Container{
-		Container:         tbContainer,
-		clusterFileVolume: clusterFileDir,
+		Container:      tbContainer,
+		clusterFileDir: clusterFileDir,
 	}, nil
 }
 
 // Terminate exits the container then cleans-up the temporary directory containing cluster file
 func (c *Container) Terminate(ctx context.Context) error {
 	err := c.Container.Terminate(ctx)
-	// c.clusterFileVolume
+	_ = os.RemoveAll(c.clusterFileDir)
 	return err
 }
