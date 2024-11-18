@@ -11,9 +11,12 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+
     container:
       image: docker:27.3.1-dind
       options: --security-opt seccomp=unconfined
+      privileged: true
 
     steps:
       - name: Checkout repository
@@ -26,7 +29,7 @@ jobs:
 
       - name: Install GCC and dependencies
         run: |
-          apk add --no-cache gcc musl-dev libc-dev
+          apk add build-base
 
       - name: Run tests
         env:
