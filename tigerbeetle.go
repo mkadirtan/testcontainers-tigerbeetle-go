@@ -91,7 +91,7 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 		hostConfig.Mounts = []mount.Mount{
 			{
 				Type:           mount.TypeBind,
-				Source:         clusterFileDir,
+				Source:         clusterFileDir + "/",
 				Target:         "/data",
 				ReadOnly:       false,
 				Consistency:    "",
