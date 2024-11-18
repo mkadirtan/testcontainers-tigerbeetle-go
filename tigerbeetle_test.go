@@ -10,7 +10,7 @@ import (
 	"github.com/tigerbeetle/tigerbeetle-go/pkg/types"
 )
 
-func TestTigerBeetleContainer(t *testing.T) {
+func TestTigerbeetleContainer(t *testing.T) {
 	ctx := context.Background()
 
 	tbContainer, err := tigerbeetle.Run(ctx, tigerbeetle.DefaultImage)

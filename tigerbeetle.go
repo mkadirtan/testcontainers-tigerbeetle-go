@@ -25,11 +25,11 @@ const (
 
 type Container struct {
 	testcontainers.Container
-	dataDir string
+	clusterFileDir string
 }
 
 // Address returns the connection address of the Tigerbeetle container
-// The Cluster ID is 0
+// The ClusterID is set to 0 for containers started using this package
 // Example usage:
 // ```go
 //
@@ -46,22 +46,19 @@ func (c *Container) Address(ctx context.Context) (string, error) {
 	return mappedPort.Port(), nil
 }
 
-// Run creates a temporary directory with 0_0.tigerbeetle cluster file and starts the Tigerbeetle at default 3000 port
-// The temporary directory is cleaned-up upon Terminate
-// The port is unchangeable for now
+// Run creates a temporary directory for 0_0.tigerbeetle cluster file and starts the Tigerbeetle at default 3000 port
 func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*Container, error) {
-	// Create the temporary directory to store 0_0.tigerbeetle cluster file
-	dataDir, err := os.MkdirTemp("", "tbdata")
+	clusterFileDir, err := os.MkdirTemp("", "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temporary directory: %w", err)
+		return nil, fmt.Errorf("could not create temporary directory for cluster file: %w", err)
 	}
 
-	// hostConfigModifier mounts the temporary directory to the container
+	// hostConfigModifier mounts cluster file directory to container
 	hostConfigModifier := func(hostConfig *container.HostConfig) {
 		hostConfig.Mounts = []mount.Mount{
 			{
 				Type:           mount.TypeBind,
-				Source:         dataDir,
+				Source:         clusterFileDir,
 				Target:         "/data",
 				ReadOnly:       false,
 				Consistency:    "",
@@ -81,7 +78,7 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 			fmt.Sprintf("--cluster=%d", clusterID),
 			fmt.Sprintf("--replica=%d", replicaID),
 			fmt.Sprintf("--replica-count=%d", replicaCount),
-			"/data/0_0.tigerbeetle",
+			fmt.Sprintf("/data/%s", clusterFileName),
 		},
 		WaitingFor:         wait.ForExit(),
 		Privileged:         true,
@@ -89,8 +86,10 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 	}
 
 	// start the formatContainer
+
 	formatContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: formatContainerReq,
+		ProviderType:     testcontainers.ProviderDocker,
 		Started:          true,
 	})
 	if err != nil {
@@ -111,6 +110,7 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 			fmt.Sprintf("--addresses=0.0.0.0:%s", defaultPort),
 			fmt.Sprintf("/data/%s", clusterFileName),
 		},
+		Privileged:         true,
 		WaitingFor:         wait.ForListeningPort(defaultPort),
 		HostConfigModifier: hostConfigModifier,
 	}
@@ -134,15 +134,14 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 	}
 
 	return &Container{
-		Container: tbContainer,
-		dataDir:   dataDir,
+		Container:      tbContainer,
+		clusterFileDir: clusterFileDir,
 	}, nil
 }
 
 // Terminate exits the container then cleans-up the temporary directory containing cluster file
 func (c *Container) Terminate(ctx context.Context) error {
 	err := c.Container.Terminate(ctx)
-	// During termination remove the temporary folder containing cluster file
-	_ = os.RemoveAll(c.dataDir)
+	_ = os.RemoveAll(c.clusterFileDir)
 	return err
 }

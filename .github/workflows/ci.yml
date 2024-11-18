@@ -8,26 +8,38 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
 
     services:
-      docker:
-        image: docker:23.0.6-dind
-        privileged: true
+      # dind is short for docker-in-docker
+      # testcontainers use this service from the exposed port
+      # tigerbeetle container needs privileged access to start, because it needs to access iouring feature
+      dind:
+        image: docker:27.3.1-dind
+        options: --security-opt seccomp=unconfined --privileged
+        ports:
+          - "2375:2375"
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Docker CLI
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker.io
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
 
-      - name: Run tests with TigerBeetle
+      - name: Run tests
         env:
-          DOCKER_HOST: tcp://localhost:2375
+          # look services/dind above
+          DOCKER_HOST: "tcp://docker:2375"
+          DOCKER_TLS_CERTDIR: ""
+          DOCKER_DRIVER: overlay2
+          CGO_ENABLED: "1"
         run: |
           go test ./... -v
