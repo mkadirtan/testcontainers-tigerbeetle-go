@@ -81,7 +81,7 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 			fmt.Sprintf("--cluster=%d", clusterID),
 			fmt.Sprintf("--replica=%d", replicaID),
 			fmt.Sprintf("--replica-count=%d", replicaCount),
-			"/data/0_0.tigerbeetle",
+			fmt.Sprintf("/data/%s", clusterFileName),
 		},
 		WaitingFor:         wait.ForExit(),
 		Privileged:         true,
