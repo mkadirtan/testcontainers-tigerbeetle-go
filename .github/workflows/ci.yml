@@ -12,7 +12,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: ubuntu
+      image: docker:27.3.1-dind
       options: --security-opt seccomp=unconfined
 
     steps:
@@ -24,17 +24,6 @@ jobs:
         with:
           go-version: '1.23.2'
 
-      - name: Set up Docker
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io
-          systemctl start docker
-          usermod -aG docker $USER
-          newgrp docker
-          docker info
-
       - name: Run tests
-        env:
-          DOCKER_HOST: "unix:///var/run/docker.sock"
         run: |
           go test ./... -v
