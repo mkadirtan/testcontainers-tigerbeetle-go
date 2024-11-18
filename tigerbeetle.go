@@ -81,8 +81,7 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 			fmt.Sprintf("--replica-count=%d", replicaCount),
 			fmt.Sprintf("/data/%s", clusterFileName),
 		},
-		WaitingFor: wait.ForExit(),
-		// Privileged:         true,
+		WaitingFor:         wait.ForExit(),
 		HostConfigModifier: hostConfigModifier,
 	}
 
@@ -111,7 +110,6 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 			fmt.Sprintf("--addresses=0.0.0.0:%s", defaultPort),
 			fmt.Sprintf("/data/%s", clusterFileName),
 		},
-		// Privileged:         true,
 		WaitingFor:         wait.ForListeningPort(defaultPort),
 		HostConfigModifier: hostConfigModifier,
 	}
