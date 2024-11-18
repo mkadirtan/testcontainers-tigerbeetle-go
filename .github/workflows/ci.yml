@@ -26,10 +26,10 @@ jobs:
 
       - name: Set up Docker
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io
-          sudo systemctl start docker
-          sudo usermod -aG docker $USER
+          apt-get update
+          apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io
+          systemctl start docker
+          usermod -aG docker $USER
           newgrp docker
           docker info
 
