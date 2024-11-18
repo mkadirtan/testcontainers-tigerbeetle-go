@@ -12,6 +12,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
+      image: ubuntu-latest
       options: --security-opt seccomp=unconfined
 
     steps:
