@@ -49,7 +49,13 @@ func (c *Container) Address(ctx context.Context) (string, error) {
 
 // Run creates a temporary volume for 0_0.tigerbeetle cluster file and starts the Tigerbeetle at default 3000 port
 func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*Container, error) {
-	tmpDir := os.TempDir()
+	// tmpDir := os.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	tmpDir := wd
 	suffix := fmt.Sprintf("tmp-tb-%d", rand.Uint64())
 	var clusterFileDir string
 	if len(tmpDir) > 0 && os.IsPathSeparator(tmpDir[len(tmpDir)-1]) {
@@ -59,11 +65,18 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 	}
 
 	fmt.Printf("cluster file dir: %s\n", clusterFileDir)
-	err := os.Mkdir(clusterFileDir, 0777)
+	err = os.Mkdir(clusterFileDir, 0777)
 	// clusterFileDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return nil, fmt.Errorf("could not create temporary directory for cluster file: %w", err)
 	}
+
+	stats, err := os.Stat(clusterFileDir)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("cluster file stats: %+v\n", stats)
 
 	//err = os.Chown(clusterFileDir, os.Getuid(), os.Getgid())
 	//if err != nil {
