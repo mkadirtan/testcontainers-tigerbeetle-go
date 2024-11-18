@@ -12,30 +12,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: read
+    services:
+      docker:
+        image: docker:23.0.6-dind
+        privileged: true
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.23.2'
-
-      # Enable Docker to run privileged containers
-      - name: Set up Docker
+      - name: Install Docker CLI
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io
-          sudo systemctl start docker
-          sudo usermod -aG docker $USER
-          newgrp docker
-          docker info
+          sudo apt-get install -y docker.io
 
-      - name: Run tests
+      - name: Run tests with TigerBeetle
         env:
-          DOCKER_HOST: "unix:///var/run/docker.sock"
+          DOCKER_HOST: tcp://localhost:2375
         run: |
           go test ./... -v
