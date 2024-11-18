@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -48,15 +49,27 @@ func (c *Container) Address(ctx context.Context) (string, error) {
 
 // Run creates a temporary volume for 0_0.tigerbeetle cluster file and starts the Tigerbeetle at default 3000 port
 func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustomizer) (*Container, error) {
-	suffix := rand.Uint64()
-	clusterFileVolume := fmt.Sprintf("tmp-tigerbeetle-%x", suffix)
+	clusterFileDir := fmt.Sprintf("%stmp.tb.%d", os.TempDir(), rand.Uint64())
+	err := os.Mkdir(clusterFileDir, 0777)
+	// clusterFileDir, err := os.MkdirTemp("", "")
+	if err != nil {
+		return nil, fmt.Errorf("could not create temporary directory for cluster file: %w", err)
+	}
+
+	//err = os.Chown(clusterFileDir, os.Getuid(), os.Getgid())
+	//if err != nil {
+	//	return nil, fmt.Errorf("could not change owner of the temporary directory for cluster file: %w", err)
+	//}
+
+	//suffix := rand.Uint64()
+	//clusterFileVolume := fmt.Sprintf("tmp-tigerbeetle-%x", suffix)
 
 	// hostConfigModifier mounts volume to container cluster file
 	hostConfigModifier := func(hostConfig *container.HostConfig) {
 		hostConfig.Mounts = []mount.Mount{
 			{
-				Type:           mount.TypeVolume,
-				Source:         clusterFileVolume,
+				Type:           mount.TypeBind,
+				Source:         clusterFileDir,
 				Target:         "/data",
 				ReadOnly:       false,
 				Consistency:    "",
@@ -106,6 +119,7 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 			fmt.Sprintf("--addresses=0.0.0.0:%s", defaultPort),
 			fmt.Sprintf("/data/%s", clusterFileName),
 		},
+		Privileged:         true,
 		WaitingFor:         wait.ForListeningPort(defaultPort),
 		HostConfigModifier: hostConfigModifier,
 	}
@@ -130,11 +144,13 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 
 	return &Container{
 		Container:         tbContainer,
-		clusterFileVolume: clusterFileVolume,
+		clusterFileVolume: clusterFileDir,
 	}, nil
 }
 
 // Terminate exits the container then cleans-up the temporary directory containing cluster file
-func (c *Container) Terminate(_ context.Context) error {
-	return testcontainers.TerminateContainer(c.Container, testcontainers.RemoveVolumes(c.clusterFileVolume))
+func (c *Container) Terminate(ctx context.Context) error {
+	err := c.Container.Terminate(ctx)
+	// c.clusterFileVolume
+	return err
 }
