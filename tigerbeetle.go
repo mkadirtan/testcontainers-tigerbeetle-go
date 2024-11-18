@@ -55,6 +55,7 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 
 	// hostConfigModifier mounts cluster file directory to container
 	hostConfigModifier := func(hostConfig *container.HostConfig) {
+		hostConfig.SecurityOpt = []string{"seccomp=unconfined"}
 		hostConfig.Mounts = []mount.Mount{
 			{
 				Type:           mount.TypeBind,
@@ -80,8 +81,8 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 			fmt.Sprintf("--replica-count=%d", replicaCount),
 			fmt.Sprintf("/data/%s", clusterFileName),
 		},
-		WaitingFor:         wait.ForExit(),
-		Privileged:         true,
+		WaitingFor: wait.ForExit(),
+		// Privileged:         true,
 		HostConfigModifier: hostConfigModifier,
 	}
 
@@ -110,7 +111,7 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 			fmt.Sprintf("--addresses=0.0.0.0:%s", defaultPort),
 			fmt.Sprintf("/data/%s", clusterFileName),
 		},
-		Privileged:         true,
+		// Privileged:         true,
 		WaitingFor:         wait.ForListeningPort(defaultPort),
 		HostConfigModifier: hostConfigModifier,
 	}
