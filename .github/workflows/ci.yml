@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: docker:27.3.1-dind
+      image: docker:dind-rootless
       options: --security-opt seccomp=unconfined --privileged
 
     steps:
