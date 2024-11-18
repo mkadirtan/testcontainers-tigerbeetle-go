@@ -56,6 +56,11 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 		return nil, fmt.Errorf("failed to create temporary directory: %w", err)
 	}
 
+	err = os.Chmod(dataDir, 0777)
+	if err != nil {
+		return nil, fmt.Errorf("failed to change temporary directory's permissions: %w", err)
+	}
+
 	// hostConfigModifier mounts the temporary directory to the container
 	hostConfigModifier := func(hostConfig *container.HostConfig) {
 		hostConfig.Mounts = []mount.Mount{
