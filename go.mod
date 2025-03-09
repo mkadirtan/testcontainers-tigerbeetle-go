@@ -1,12 +1,12 @@
 module github.com/mkadirtan/testcontainers-tigerbeetle-go
 
-go 1.23.2
+go 1.24.1
 
 require (
 	github.com/docker/docker v27.3.1+incompatible
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go v0.34.0
-	github.com/tigerbeetle/tigerbeetle-go v0.16.12
+	github.com/tigerbeetle/tigerbeetle-go v0.16.30
 )
 
 require (

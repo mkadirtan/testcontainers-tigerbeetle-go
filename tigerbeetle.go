@@ -20,7 +20,7 @@ const (
 )
 
 const (
-	DefaultImage = "ghcr.io/tigerbeetle/tigerbeetle:0.16.12"
+	DefaultImage = "ghcr.io/tigerbeetle/tigerbeetle:0.16.30"
 )
 
 type Container struct {
